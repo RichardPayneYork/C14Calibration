@@ -51,7 +51,7 @@ CompareSampleDates<-function(data1,data2,nsamp,nperm){
 ###########################################################################################################
 ###Create a summed probability density curve from a BChronCalibrate dataset
 SPD<-function(data){
-            Dates<--2000:70000
+            Dates<- -2000:70000
             SummedDensity<-rep(0, length(Dates))
             for (i in 1:length(data)) {
               Matches<-match(data[[i]]$ageGrid, Dates)
@@ -61,7 +61,6 @@ SPD<-function(data){
             Output<-Output[min(which(Output$SummedDensity!=0)):max(which(Output$SummedDensity!=0)),]
             return(Output)
             }
-
 
 ###########################################################################################################
 ###'Uncalibrate' function from Crema et al. (2016 PLoS ONE 11(4): e0154809)
@@ -86,8 +85,8 @@ uncalibrate<-function(dates,error,calCurves='intcal13',random=TRUE){
 
 
 
-##############################################################################################################
-####Note that although the code in this file is functional (to the best of my knowledge) it is is not      ###
-####neccessarily efficient in terms of time or memory usage. Some functions are very slow to run and       ###
-####many could probably be improved with better coding. Use at your own risk.                              ###
-##############################################################################################################
+###############################################################################################################
+#### Note that although the code in this file is functional (to the best of my knowledge) it is is not      ###
+#### neccessarily efficient in terms of time or memory usage. Some functions are very slow to run and       ###
+#### many could probably be improved with better coding. Use at your own risk.                              ###
+###############################################################################################################

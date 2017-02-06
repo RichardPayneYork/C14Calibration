@@ -121,8 +121,8 @@ RandCI<-function(ndates,error,limits,nsamps){
           } #Need to think about smoothing
 
 ###########################################################################################################
-###Uses a bootstrap approach to test for difference between SPDs. 
-###Method correlates two SPDs and then compares correlation coefficient (Spearman Rs as default) to correlation with random shuffling of dates between two datasets of equivalent size
+###Uses a re-sampling approach to test for difference between SPDs. 
+###Method correlates two SPDs and then compares correlation coefficient (Spearman Rs as default) to correlation with random shuffling of dates between two datasets of equivalent size to original
 ###Parameters: names/dates/errors/calcurves for two datasets, nperm=no. cycles, cormethod=correlation coefficient: "spearman" or "pearson"
 
 SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calcurve2, names2, cormethod="spearman"){
@@ -143,7 +143,7 @@ SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calc
           zerocheck<-matrix[,1]+matrix[,2]
           matrix<-matrix[min(which(zerocheck!=0)):max(which(zerocheck!=0)),]
           Cor<-rcorr(matrix, type=cormethod)
-          #Establishing an output matrix and starting a loop
+          #Establishing an output vector and starting a loop
           CorrelationResults<-rep(0,nperm)
           for (i in 1:nperm){
               #Combine to single matrix
@@ -178,10 +178,38 @@ SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calc
               CorrelationResults[i]<-RandCor$r[1,2]
               }
           P<-(length(CorrelationResults[CorrelationResults>Cor$r[1,2]]))/nperm
-          print(noquote(c("P=",P)))
+          print(noquote(c("P=",1-P)))
           output<-list(CorrelationCoefficient=Cor$r[1,2],RandomCorrelations=CorrelationResults)
           return(output)
           }
+
+###########################################################################################################
+###Uses bootstrapping to derive confidence intervals for an SPD. 
+###Method selects n samples with replacements, repeats multiple times and calculates 95% confidence intervals based on the results. 
+###Parameters: names/dates/errors/calcurves for the dataset, nperm=number bootstrap cycles
+
+
+SPDboot<-function(nboot, dates, error, calcurve, names){
+          data<-data.frame(names, dates, error, calcurve, stringsAsFactors=F)
+          colnames(data)<-c("names","dates","error","calcurve")
+          Dates<- -2000:70000
+          matrix<-matrix(nrow=length(Dates),ncol=nboot)
+          matrix[]<-0L
+          rownames(matrix)<-Dates
+          for (i in 1:nboot){
+              selected<-sample(nrow(data), nrow(data), replace=T)
+              sample<-data[selected, ]
+              Calibrated<-BchronCalibrate(sample$dates, sample$error, sample$calcurve, sample$names)
+              SPD<-SPD(Calibrated)
+              matches<-match(SPD$Dates, Dates)
+              matrix[,i][matches]<-matrix[,i][matches]+SPD$SummedDensity
+              }
+          lowerCI<-apply(matrix,1,quantile,prob=0.025)
+          upperCI<-apply(matrix,1,quantile,prob=0.975)        
+          CIs<-data.frame(Dates,lowerCI,upperCI)
+          CIs<-CIs[min(which(CIs$lowerCI!=0)):max(which(CIs$lowerCI!=0)),]
+          return(CIs)
+          }## double check all this when fresh
 
 
 ###############################################################################################################

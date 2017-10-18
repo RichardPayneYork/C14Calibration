@@ -11,6 +11,10 @@ library("zoo")
 library("SiZer")
 library("geosphere")
 library("Hmisc")
+library("maptools")
+library("raster")
+library("sp")
+library("rgdal")
 
 ###########################################################################################################
 ###Function for re-sampling date distributions. Data is a BChronCalibrate object, nsamp is number of re-samples.
@@ -22,7 +26,7 @@ SampleDates<-function(data,nsamp){
                       data,function(x){
                       ages<-x$ageGrid
                       densities<-x$densities
-                samples<-sample(ages,1,prob=densities,replace=TRUE)
+                      samples<-sample(ages,1,prob=densities,replace=TRUE)
                         }
                 ),use.names=F))
               matrix[,i]<-res
@@ -123,7 +127,7 @@ RandCI<-function(ndates,error,limits,nsamps){
 ###########################################################################################################
 ###Uses a re-sampling approach to test for difference between SPDs. 
 ###Method correlates two SPDs and then compares correlation coefficient (Spearman Rs as default) to correlation with random shuffling of dates between two datasets of equivalent size to original
-###Parameters: names/dates/errors/calcurves for two datasets, nperm=no. cycles, cormethod=correlation coefficient: "spearman" or "pearson"
+###Parameters: names/dates/errors/calcurves for two datasets, nperm=number cycles, cormethod=correlation coefficient: "spearman" or "pearson"
 
 SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calcurve2, names2, cormethod="spearman"){
           Cal1<-BchronCalibrate(dates1, error1, calcurve1, names1)
@@ -210,6 +214,35 @@ SPDboot<-function(nboot, dates, error, calcurve, names){
           CIs<-CIs[min(which(CIs$lowerCI!=0)):max(which(CIs$lowerCI!=0)),]
           return(CIs)
           }## double check all this when fresh
+          ### also need to think about smoothing
+
+
+###########################################################################################################
+###Transfers radiocarbon dates to raster cells, using re-sampling of date distribution to encompass non-linearity.
+###Method takes an output from SampleDates, assigns coordinates, fits to specified raster grid and calculates values using specified function with specified cut-off. Assumes WGS84 coordinates. Returns a summary file and output based on date means. 
+###Parameters: data is a SampleDates output with assocated coordinates, raster specification, function to derive values and cut-off for minimum number of points informing a grid cell. 
+
+
+RasterDates<-function(data,nsamp=1000,easting,northing,name,raster.cols=10,raster.rows=25,func=mean,raster.cutoff=4){
+        raster_mean_output<-rep(0,nsamp)
+        raster_results<-matrix(nrow=raster.cols*raster.rows,ncol=nsamp)
+        for (i in 1:1000){
+          Working<-data.frame(easting,northing,data[,i])
+          coordinates(Working)<-cbind(Working[,1],Working[,2])
+          proj4string(Working)<-CRS('+proj=longlat +datum=WGS84')
+          blankraster<-raster(extent(Working), ncols=raster.cols, nrows=raster.rows)
+          raster<-rasterize(Working, blankraster, data[,i], fun=function(x,na.rm){ifelse(length(x)<4,NA,func(x))})
+          raster_mean<-mean(getValues(raster),na.rm=T)
+          raster_mean_output[i]<-raster_mean
+          raster_results[,i]<-getValues(raster)
+          }
+        raster_results_rowMeans<-rowMeans(raster_results)#this is the mean for each grid cell
+        hist(raster_results_rowMeans)
+        Raster_average_summary<-setNames(c(name,(mean(raster_mean_output)),(quantile(raster_mean_output, c(0.05,0.95)))),c("approach","mean","5%","95%"))
+        output<-list("results"=raster_results_rowMeans,"summary"=Raster_average_summary)
+        return(output)
+}
+
 
 
 ###############################################################################################################

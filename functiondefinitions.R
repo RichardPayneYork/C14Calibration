@@ -15,6 +15,9 @@ library("maptools")
 library("raster")
 library("sp")
 library("rgdal")
+library("R.basic")
+library("scales")
+
 
 ###########################################################################################################
 ###Function for re-sampling date distributions. Data is a BChronCalibrate object, nsamp is number of re-samples.
@@ -127,7 +130,7 @@ RandCI<-function(ndates,error,limits,nsamps){
 ###########################################################################################################
 ###Uses a re-sampling approach to test for difference between SPDs. 
 ###Method correlates two SPDs and then compares correlation coefficient (Spearman Rs as default) to correlation with random shuffling of dates between two datasets of equivalent size to original
-###Parameters: names/dates/errors/calcurves for two datasets, nperm=number cycles, cormethod=correlation coefficient: "spearman" or "pearson"
+###Arguments: names/dates/errors/calcurves for two datasets, nperm=number cycles, cormethod=correlation coefficient: "spearman" or "pearson"
 
 SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calcurve2, names2, cormethod="spearman"){
           Cal1<-BchronCalibrate(dates1, error1, calcurve1, names1)
@@ -190,7 +193,7 @@ SPDDiff<-function(nperm, dates1, error1, calcurve1, names1, dates2, error2, calc
 ###########################################################################################################
 ###Uses bootstrapping to derive confidence intervals for an SPD. 
 ###Method selects n samples with replacements, repeats multiple times and calculates 95% confidence intervals based on the results. 
-###Parameters: names/dates/errors/calcurves for the dataset, nperm=number bootstrap cycles
+###Arguments: names/dates/errors/calcurves for the dataset, nperm=number bootstrap cycles
 
 
 SPDboot<-function(nboot, dates, error, calcurve, names){
@@ -220,7 +223,7 @@ SPDboot<-function(nboot, dates, error, calcurve, names){
 ###########################################################################################################
 ###Transfers radiocarbon dates to raster cells, using re-sampling of date distribution to encompass non-linearity.
 ###Method takes an output from SampleDates, assigns coordinates, fits to specified raster grid and calculates values using specified function with specified cut-off. Assumes WGS84 coordinates. Returns a summary file and output based on date means. 
-###Parameters: data is a SampleDates output with assocated coordinates, raster specification, function to derive values and cut-off for minimum number of points informing a grid cell. 
+###Arguments: data is a SampleDates output with assocated coordinates, raster specification, function to derive values and cut-off for minimum number of points informing a grid cell. 
 
 
 RasterDates<-function(data,nsamp=1000,easting,northing,name,raster.cols=10,raster.rows=25,func=mean,raster.cutoff=4){
@@ -243,7 +246,27 @@ RasterDates<-function(data,nsamp=1000,easting,northing,name,raster.cols=10,raste
         return(output)
 }
 
+###########################################################################################################
+###Function to calculate overall core accumulation rate. Assumes every text file in the working directory is a Bacon output. Only input is specified name of output file. 
 
+SiteAccumulation<-function(site.accumulation.name="output"){
+        file.list<-list.files(pattern = "*.txt")
+        data.list<-lapply(file.list, FUN=read.table, header=TRUE)
+        max.min<-matrix(nrow=length(file.list),ncol=2)
+        for (i in 1:length(file.list)) {
+            max.min[i,1]<-min(data.list[[i]][,5])
+            max.min[i,2]<-max(data.list[[i]][,5])
+        }
+        age.span<-max.min[,2]-max.min[,1]
+        max.depth<-rep(0,length(file.list))
+        for (i in 1:length(file.list)) {
+           max.depth[i]<-max(data.list[[i]][,1])
+        }
+        site.accum<-age.span/max.depth
+        site.accum.output<-data.frame(file.list,site.accum)
+        write.csv(site.accum.output, paste(site.accumulation.name,".csv"))
+        return(site.accum.output)
+}
 
 ###############################################################################################################
 #### Note that although the code in this file is functional (to the best of my knowledge) it is is not      ###
